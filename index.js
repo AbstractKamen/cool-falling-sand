@@ -3,6 +3,7 @@ const DEFAULT_CANVAS_HEIGHT = window.innerHeight;
 
 var cellSize = 4;
 var brushSize = 16;
+var density = 16;
 
 var RED;
 var WHITE;
@@ -31,40 +32,58 @@ function setup() {
     placeTakenGrid = makeGrid(Math.floor(DEFAULT_CANVAS_WIDTH / cellSize), Math.floor(DEFAULT_CANVAS_HEIGHT / cellSize));
     createCanvas(DEFAULT_CANVAS_WIDTH, DEFAULT_CANVAS_HEIGHT);
     frameRate(60);
-
+    // cell size
     let increaseCellSize = createButton('Increase Cell Size');
     let decreaseCellSize = createButton('Decrease Cell Size');
     increaseCellSize.position(colorPicker.width + 5, DEFAULT_CANVAS_HEIGHT);
-    decreaseCellSize.position(increaseCellSize.width + colorPicker.width + 5, DEFAULT_CANVAS_HEIGHT);
+    decreaseCellSize.position(colorPicker.width + 5, DEFAULT_CANVAS_HEIGHT + increaseCellSize.height);
+    increaseCellSize.mousePressed(() => {
+        let newSize = Math.min(cellSize << 1, 64);
+        cells.length = 0;
+        cellSize = newSize;
+        placeTakenGrid = makeGrid(Math.floor(DEFAULT_CANVAS_WIDTH / cellSize), Math.floor(DEFAULT_CANVAS_HEIGHT / cellSize));
+    });
+    decreaseCellSize.mousePressed(() => {
+        let newSize = Math.max(cellSize >> 1, 4);
+        cells.length = 0;
+        cellSize = newSize;
+        placeTakenGrid = makeGrid(Math.floor(DEFAULT_CANVAS_WIDTH / cellSize), Math.floor(DEFAULT_CANVAS_HEIGHT / cellSize));
+    });
+    let cellSizeColWidth = Math.max(increaseCellSize.width, decreaseCellSize.width);
+    // brush size
+    let increaseBrush = createButton('Increase Brush Size');
+    let decreaseBrush = createButton('Decrease Brush Size');
+    increaseBrush.position(colorPicker.width + 5 + cellSizeColWidth, DEFAULT_CANVAS_HEIGHT);
+    decreaseBrush.position(colorPicker.width + 5 + cellSizeColWidth, DEFAULT_CANVAS_HEIGHT + increaseBrush.height);
+    increaseBrush.mousePressed(() => {
+        brushSize = Math.min(brushSize << 1, 64)
+    })
+    decreaseBrush.mousePressed(() => {
+        brushSize = Math.max(brushSize >> 1, 1)
+    })
+    let brushSizeColWidth = Math.max(increaseBrush.width, decreaseBrush.width);
+    // brush density
+    let increaseBrushDensity = createButton('Increase Brush Density');
+    let decreaseBrushDensity = createButton('Decrease Brush Density');
+    increaseBrushDensity.position(colorPicker.width + 5 + cellSizeColWidth + brushSizeColWidth, DEFAULT_CANVAS_HEIGHT);
+    decreaseBrushDensity.position(colorPicker.width + 5 + cellSizeColWidth + brushSizeColWidth, DEFAULT_CANVAS_HEIGHT + increaseBrushDensity.height);
+    increaseBrushDensity.mousePressed(() => {
+        density = Math.min(density << 1, brushSize);
+    })
+    decreaseBrushDensity.mousePressed(() => {
+        density = Math.max(density >> 1, 1)
+    })
+}
 
-    increaseCellSize.mousePressed(handleIncreaseCellSize);
-    decreaseCellSize.mousePressed(handleDecreaseCellSize);
-}
-function handleIncreaseCellSize() {
-    let newSize = Math.min(cellSize << 1, 64);
-    cells.length = 0;
-    cellSize = newSize;
-    placeTakenGrid = makeGrid(Math.floor(DEFAULT_CANVAS_WIDTH / cellSize), Math.floor(DEFAULT_CANVAS_HEIGHT / cellSize));
-}
-function handleDecreaseCellSize() {
-    let newSize = Math.max(cellSize >> 1, 4);
-    cells.length = 0;
-    cellSize = newSize;
-    placeTakenGrid = makeGrid(Math.floor(DEFAULT_CANVAS_WIDTH / cellSize), Math.floor(DEFAULT_CANVAS_HEIGHT / cellSize));
-}
 function draw() {
     ifMouseIsPressed();
     updateCells();
     background('#181818FF');
-    push();
     noStroke();
     for (const cell of cells) {
-        push();
         fill(cell.color);
         rect(cell.x * cellSize, cell.y * cellSize, cellSize, cellSize);
-        pop();
     }
-    pop();
     // debugGrid();
 }
 
@@ -88,7 +107,7 @@ function ifMouseIsPressed() {
         let x = Math.floor(mouseX / cellSize);
         let y = Math.floor(mouseY / cellSize);
         if (0 <= y && y < placeTakenGrid.length && 0 <= x && x < placeTakenGrid[0].length) {
-            spray(x, y, 20, brushSize);
+            spray(x, y, density, brushSize);
         }
     }
 }
@@ -115,7 +134,6 @@ function addCells(times, centerY, sprayAreaFactor, centerX) {
 }
 
 const descendingComparator = (a, b) => a - b;
-// could have just sorted this...
 const toRemove = new BinaryHeap(descendingComparator);
 const duplicates = new Set();
 
