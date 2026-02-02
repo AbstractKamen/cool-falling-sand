@@ -20,6 +20,8 @@ class Cell {
         this.x = x;
         this.y = y;
         this.color = color;
+        let a = alpha(color);
+        this.minAlpha = Math.floor(random(a >> 2, a))
     }
 }
 
@@ -195,17 +197,25 @@ function updateCell(cell) {
     if (updateDown(cell)) return;
     if (deltaTime % 2 > 0) {
         if (updateDownLeft(cell)) return;
-        updateDownRight(cell);
+        if (updateDownRight(cell)) return;
     } else {
         if (updateDownRight(cell)) return;
-        updateDownLeft(cell);
+        if (updateDownLeft(cell)) return
     }
+    if (!cell.moved) return;
+    cell.moved = false;
+    // if we reach here it means we are stuck and there is a cell bellow
+    let cellBellowIndex = placeTakenGrid[cell.y + 1][cell.x];
+    let c = cells[cellBellowIndex].color;
+    c.setAlpha(Math.max(alpha(c) - 8, cell.minAlpha));
+
 
     function updateDown(cell) {
         if (!downSpotIsTaken(cell)) {
             releaseSpot(cell);
             cell.y += 1;
             takeSpot(cell);
+            cell.moved = true;
             return true;
         }
         return false;
@@ -217,6 +227,7 @@ function updateCell(cell) {
             cell.y += 1;
             cell.x -= 1;
             takeSpot(cell);
+            cell.moved = true;
             return true;
         }
         return false;
@@ -228,6 +239,7 @@ function updateCell(cell) {
             cell.y += 1;
             cell.x += 1;
             takeSpot(cell);
+            cell.moved = true;
             return true;
         }
         return false;
