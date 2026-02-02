@@ -83,7 +83,6 @@ function draw() {
     ifMouseIsPressed();
     updateCells();
     updateCells();
-    updateCells();
     background('#181818FF');
     noStroke();
     for (const cell of cells) {
