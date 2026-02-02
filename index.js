@@ -19,6 +19,8 @@ class Cell {
         this.index = index;
         this.x = x;
         this.y = y;
+        this.canMove = true;
+
         this.color = color;
         let a = alpha(color);
         this.minAlpha = Math.floor(random(a >> 2, a))
@@ -79,6 +81,8 @@ function setup() {
 
 function draw() {
     ifMouseIsPressed();
+    updateCells();
+    updateCells();
     updateCells();
     background('#181818FF');
     noStroke();
@@ -183,17 +187,44 @@ function removeCells(times, centerY, sprayAreaFactor, centerX) {
 //     [ 1, -1,  1 ]
 //     [-1, -1, -1 ]
 
+function updateNeighboursCanMove(cell) {
+    if (0 <= cell.y - 1) {
+        let topNeighbour = placeTakenGrid[cell.y - 1][cell.x];
+        if (topNeighbour > -1) {
+            cells[topNeighbour].canMove = true;
+        }
+        if (0 <= cell.x - 1) {
+            let topLeftNeighbour = placeTakenGrid[cell.y - 1][cell.x - 1];
+            if (topLeftNeighbour > -1) {
+                cells[topLeftNeighbour].canMove = true;
+            }
+        }
+        if (cell.x + 1 < placeTakenGrid[cell.y - 1].length) {
+            let topRightNeighbour = placeTakenGrid[cell.y - 1][cell.x + 1];
+            if (topRightNeighbour > -1) {
+                cells[topRightNeighbour].canMove = true;
+            }
+        }
+    }
+}
+
 function removeCell(index) {
     let toSwap = cells[cells.length - 1];
     cells[cells.length - 1] = cells[index];
     cells[index] = toSwap;
     cells[index].index = index;
     takeSpot(toSwap);
-    releaseSpot(cells.pop());
+    let removed = cells.pop();
+    releaseSpot(removed);
+    updateNeighboursCanMove(removed);
 }
 
 function updateCell(cell) {
-    if (placeTakenGrid.length <= cell.y + 1) return;
+    if (!cell.canMove) return;
+    if (placeTakenGrid.length <= cell.y + 1) {
+        cell.canMove = false;
+        return;
+    }
     if (updateDown(cell)) return;
     if (deltaTime % 2 > 0) {
         if (updateDownLeft(cell)) return;
@@ -202,20 +233,22 @@ function updateCell(cell) {
         if (updateDownRight(cell)) return;
         if (updateDownLeft(cell)) return
     }
-    if (!cell.moved) return;
-    cell.moved = false;
     // if we reach here it means we are stuck and there is a cell bellow
     let cellBellowIndex = placeTakenGrid[cell.y + 1][cell.x];
-    let c = cells[cellBellowIndex].color;
+    let cellBellow = cells[cellBellowIndex];
+    if (!cellBellow.canMove) {
+        cell.canMove = false;
+    }
+    let c = cellBellow.color;
     c.setAlpha(Math.max(alpha(c) - 8, cell.minAlpha));
 
 
     function updateDown(cell) {
         if (!downSpotIsTaken(cell)) {
+            updateNeighboursCanMove(cell);
             releaseSpot(cell);
             cell.y += 1;
             takeSpot(cell);
-            cell.moved = true;
             return true;
         }
         return false;
@@ -223,11 +256,11 @@ function updateCell(cell) {
 
     function updateDownLeft(cell) {
         if (0 <= cell.x - 1 && !downLeftSpotIsTaken(cell)) {
+            updateNeighboursCanMove(cell);
             releaseSpot(cell);
             cell.y += 1;
             cell.x -= 1;
             takeSpot(cell);
-            cell.moved = true;
             return true;
         }
         return false;
@@ -235,11 +268,11 @@ function updateCell(cell) {
 
     function updateDownRight(cell) {
         if (cell.x + 1 < placeTakenGrid[cell.y].length && !downRightSpotIsTaken(cell)) {
+            updateNeighboursCanMove(cell);
             releaseSpot(cell);
             cell.y += 1;
             cell.x += 1;
             takeSpot(cell);
-            cell.moved = true;
             return true;
         }
         return false;
