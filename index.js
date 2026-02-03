@@ -127,8 +127,13 @@ function spray(centerX, centerY, times, sprayAreaFactor) {
 
 function addCells(times, centerY, sprayAreaFactor, centerX) {
     for (let i = 0; i < times; i++) {
-        let y = Math.floor(random(Math.max(0, centerY - sprayAreaFactor), Math.min(centerY + sprayAreaFactor, placeTakenGrid.length - 1)));
-        let x = Math.floor(random(Math.max(0, centerX - sprayAreaFactor), Math.min(centerX + sprayAreaFactor, placeTakenGrid[0].length - 1)))
+        let y = centerY;
+        let x = centerX;
+        if (sprayAreaFactor > 1) {
+            y = Math.floor(random(Math.max(0, centerY - sprayAreaFactor), Math.min(centerY + sprayAreaFactor, placeTakenGrid.length - 1)));
+            x = Math.floor(random(Math.max(0, centerX - sprayAreaFactor), Math.min(centerX + sprayAreaFactor, placeTakenGrid[0].length - 1)));
+        }
+
         let index = placeTakenGrid[y][x];
         if (index < 0) {
             let newCell = new Cell(x, y, colorPicker.color(), cells.length);
@@ -233,13 +238,29 @@ function updateCell(cell) {
         if (updateDownLeft(cell)) return
     }
     // if we reach here it means we are stuck and there is a cell bellow
-    let cellBellowIndex = placeTakenGrid[cell.y + 1][cell.x];
-    let cellBellow = cells[cellBellowIndex];
-    if (!cellBellow.canMove) {
+    let bottomCellIndex = placeTakenGrid[cell.y + 1][cell.x];
+    let bottomCell = cells[bottomCellIndex];
+    if (!bottomCell.canMove) {
         cell.canMove = false;
     }
-    let c = cellBellow.color;
-    c.setAlpha(Math.max(alpha(c) - 8, cell.minAlpha));
+    bottomCell.color.setAlpha(Math.max(alpha(bottomCell.color) - 8, cell.minAlpha));
+
+    // if (0 <= cell.x - 1) {
+    //     let bottomLeftCellIndex = placeTakenGrid[cell.y + 1][cell.x - 1];
+    //     let bottomLeftCell = cells[bottomLeftCellIndex];
+    //     if (!bottomLeftCell.canMove) {
+    //         cell.canMove = false;
+    //     }
+    //     bottomLeftCell.color.setAlpha(Math.max(alpha(bottomLeftCell.color) - 8, cell.minAlpha));
+    // }
+    // if (cell.x + 1 < placeTakenGrid[cell.y + 1].length) {
+    //     let bottomRightCellIndex = placeTakenGrid[cell.y + 1][cell.x + 1];
+    //     let bottomRightCell = cells[bottomRightCellIndex];
+    //     if (!bottomRightCell.canMove) {
+    //         cell.canMove = false;
+    //     }
+    //     bottomRightCell.color.setAlpha(Math.max(alpha(bottomRightCell.color) - 8, cell.minAlpha));
+    // }
 
 
     function updateDown(cell) {
