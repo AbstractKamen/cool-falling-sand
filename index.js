@@ -1,9 +1,9 @@
 const DEFAULT_CANVAS_WIDTH = window.innerWidth;
 const DEFAULT_CANVAS_HEIGHT = window.innerHeight;
 
-var cellSize = 4;
-var brushSize = 16;
-var density = 16;
+var cellSize = 2;
+var brushSize = 4;
+var density = 4;
 
 var RED;
 var WHITE;
@@ -20,18 +20,22 @@ class Cell {
         this.index = index;
         this.x = x;
         this.y = y;
-        this.canMove = true;
+        this.canMove = cellType === SAND_CELL;
         this.cellType = cellType;
 
         this.color = color;
         let a = alpha(color);
-        this.minAlpha = Math.floor(random(a >> 2, a))
+        this.minAlpha = Math.floor(random(a >> 1, a))
     }
 }
 
 var cellTypeSelect;
 const PLATFORM_CELL = '1';
 const SAND_CELL = '0';
+
+var paintTypeSelect;
+const PAINT_BRUSH = '11';
+const PAINT_SPRAY = '00';
 
 function setup() {
     RED = color('red');
@@ -54,7 +58,7 @@ function setup() {
         placeTakenGrid = makeGrid(Math.floor(DEFAULT_CANVAS_WIDTH / cellSize), Math.floor(DEFAULT_CANVAS_HEIGHT / cellSize));
     });
     decreaseCellSize.mousePressed(() => {
-        let newSize = Math.max(cellSize >> 1, 4);
+        let newSize = Math.max(cellSize >> 1, 2);
         cells.length = 0;
         cellSize = newSize;
         placeTakenGrid = makeGrid(Math.floor(DEFAULT_CANVAS_WIDTH / cellSize), Math.floor(DEFAULT_CANVAS_HEIGHT / cellSize));
@@ -89,11 +93,18 @@ function setup() {
     cellTypeSelect.option('Paint Platform Cell', PLATFORM_CELL);
     cellTypeSelect.selected(SAND_CELL);
     cellTypeSelect.position(0, DEFAULT_CANVAS_HEIGHT + increaseBrushDensity.height * 2);
+    // select paint type
+    paintTypeSelect = createSelect();
+    paintTypeSelect.option('Paint Brush', PAINT_BRUSH);
+    paintTypeSelect.option('Paint Spray', PAINT_SPRAY);
+    paintTypeSelect.selected(PAINT_BRUSH);
+    paintTypeSelect.position(0 + increaseBrushDensity.width, DEFAULT_CANVAS_HEIGHT + increaseBrushDensity.height * 2);
 
 }
 
 function draw() {
     ifMouseIsPressed();
+
     updateCells();
     updateCells();
     background('#181818FF');
@@ -103,6 +114,18 @@ function draw() {
         rect(cell.x * cellSize, cell.y * cellSize, cellSize, cellSize);
     }
     // debugGrid();
+}
+
+function touchStarted(e) {
+    e.preventDefault()
+}
+
+function touchMoved(e) {
+    e.preventDefault()
+}
+
+function touchEnde(e) {
+    e.preventDefault()
 }
 
 function mousePressed() {
@@ -127,46 +150,95 @@ function ifMouseIsPressed() {
         let x = Math.floor(mouseX / cellSize);
         let y = Math.floor(mouseY / cellSize);
         if (0 <= y && y < placeTakenGrid.length && 0 <= x && x < placeTakenGrid[0].length) {
-            spray(x, y, density, brushSize >> 1);
+            paintCells(x, y, density, brushSize >> 1);
         }
     }
 }
 
-function spray(centerX, centerY, times, sprayAreaFactor) {
-    if (mousePressedOnTaken === true) {
-        removeCells(centerX, centerY, times, sprayAreaFactor);
-    } else {
-        addCells(centerX, centerY, times, sprayAreaFactor);
+function paintCells(centerX, centerY, times, area) {
+    if (paintTypeSelect.selected() === PAINT_SPRAY) {
+        if (mousePressedOnTaken === true) {
+            removeCellsSpray(centerX, centerY, times, area);
+        } else {
+            addCellsSpray(centerX, centerY, times, area);
+        }
+    } else if (paintTypeSelect.selected() === PAINT_BRUSH) {
+        if (mousePressedOnTaken === true) {
+            cellsBrush(centerX, centerY, times, area, brushRemoveStep, brushPostIterRemoveCells);
+        } else {
+            cellsBrush(centerX, centerY, times, area, doCellAdd);
+        }
     }
 }
 
-function addCells(centerX, centerY, times, sprayAreaFactor) {
-    if (cellTypeSelect.selected() === PLATFORM_CELL) {
+function cellsBrush(centerX, centerY, times, brushDiameter, funcOnStep, postStepIter = () => {
+}) {
+    let r = Math.max(1, brushDiameter >> 1);
+    if (r === 1) {
+        funcOnStep(centerY, centerX);
+    } else if (r === 2) {
+        funcOnStep(centerY, centerX);
+        if (centerY + 1 < placeTakenGrid.length && centerX + 1 < placeTakenGrid[centerY + 1].length) {
+            funcOnStep(centerY + 1, centerX + 1);
+        }
+    } else {
+        let r_2 = r * r;
+
+        for (let i = -r; i < r; i++) {
+            for (let j = -r; j < r; j++) {
+                let dX = centerX + j;
+                let dY = centerY + i;
+                if (0 <= dX && 0 <= dY
+                    && dY < placeTakenGrid.length
+                    && dX < placeTakenGrid[dY].length
+                    // pythagoras og
+                    && i * i + j * j <= r_2) {
+                    funcOnStep(dY, dX);
+                }
+            }
+        }
+    }
+    postStepIter();
+}
+
+function addCellsSpray(centerX, centerY, times, sprayAreaFactor) {
+    for (let i = 0; i < times; i++) {
         let y = centerY;
         let x = centerX;
+        if (sprayAreaFactor > 1) {
+            y = Math.floor(random(Math.max(0, centerY - sprayAreaFactor), Math.min(centerY + sprayAreaFactor, placeTakenGrid.length - 1)));
+            x = Math.floor(random(Math.max(0, centerX - sprayAreaFactor), Math.min(centerX + sprayAreaFactor, placeTakenGrid[0].length - 1)));
+        }
+
         let index = placeTakenGrid[y][x];
         if (index < 0) {
-            let newCell = new Cell(x, y, colorPicker.color(), cells.length, PLATFORM_CELL);
-            newCell.canMove = false;
-            cells.push(newCell)
-            takeSpot(newCell);
+            doCellAdd(y, x);
         }
-    } else {
-        for (let i = 0; i < times; i++) {
-            let y = centerY;
-            let x = centerX;
-            if (sprayAreaFactor > 1) {
-                y = Math.floor(random(Math.max(0, centerY - sprayAreaFactor), Math.min(centerY + sprayAreaFactor, placeTakenGrid.length - 1)));
-                x = Math.floor(random(Math.max(0, centerX - sprayAreaFactor), Math.min(centerX + sprayAreaFactor, placeTakenGrid[0].length - 1)));
-            }
+    }
+}
 
-            let index = placeTakenGrid[y][x];
-            if (index < 0) {
-                let newCell = new Cell(x, y, colorPicker.color(), cells.length, SAND_CELL);
-                cells.push(newCell)
-                takeSpot(newCell);
-            }
-        }
+function doCellAdd(dY, dX) {
+    let index = placeTakenGrid[dY][dX];
+    if (index < 0) {
+        let cellType = cellTypeSelect.selected();
+        let color = colorPicker.color();
+        let newCell = new Cell(dX, dY, color, cells.length, cellType);
+        cells.push(newCell)
+        takeSpot(newCell);
+    }
+}
+
+function brushRemoveStep(y, x) {
+    let index = placeTakenGrid[y][x];
+    if (index >= 0 && cellMousePressedOnType === cells[index].cellType) {
+        toRemove.push(index);
+    }
+}
+
+function brushPostIterRemoveCells() {
+    while (!toRemove.isEmpty()) {
+        let i = toRemove.pop();
+        removeCell(i);
     }
 }
 
@@ -174,7 +246,7 @@ const descendingComparator = (a, b) => a - b;
 const toRemove = new BinaryHeap(descendingComparator);
 const duplicates = new Set();
 
-function removeCells(centerX, centerY, times, sprayAreaFactor) {
+function removeCellsSpray(centerX, centerY, times, sprayAreaFactor) {
     for (let i = 0; i < times; i++) {
         let y = Math.round(random(Math.max(0, centerY - sprayAreaFactor), Math.min(centerY + sprayAreaFactor, placeTakenGrid.length - 1)));
         let x = Math.round(random(Math.max(0, centerX - sprayAreaFactor), Math.min(centerX + sprayAreaFactor, placeTakenGrid[0].length - 1)))
@@ -275,22 +347,22 @@ function updateCell(cell) {
     }
     bottomCell.color.setAlpha(Math.max(alpha(bottomCell.color) - 8, cell.minAlpha));
 
-    // if (0 <= cell.x - 1) {
-    //     let bottomLeftCellIndex = placeTakenGrid[cell.y + 1][cell.x - 1];
-    //     let bottomLeftCell = cells[bottomLeftCellIndex];
-    //     if (!bottomLeftCell.canMove) {
-    //         cell.canMove = false;
-    //     }
-    //     bottomLeftCell.color.setAlpha(Math.max(alpha(bottomLeftCell.color) - 8, cell.minAlpha));
-    // }
-    // if (cell.x + 1 < placeTakenGrid[cell.y + 1].length) {
-    //     let bottomRightCellIndex = placeTakenGrid[cell.y + 1][cell.x + 1];
-    //     let bottomRightCell = cells[bottomRightCellIndex];
-    //     if (!bottomRightCell.canMove) {
-    //         cell.canMove = false;
-    //     }
-    //     bottomRightCell.color.setAlpha(Math.max(alpha(bottomRightCell.color) - 8, cell.minAlpha));
-    // }
+    if (0 <= cell.x - 1) {
+        let bottomLeftCellIndex = placeTakenGrid[cell.y + 1][cell.x - 1];
+        let bottomLeftCell = cells[bottomLeftCellIndex];
+        if (!bottomLeftCell.canMove) {
+            cell.canMove = false;
+        }
+        bottomLeftCell.color.setAlpha(Math.max(alpha(bottomLeftCell.color) - 8, cell.minAlpha));
+    }
+    if (cell.x + 1 < placeTakenGrid[cell.y + 1].length) {
+        let bottomRightCellIndex = placeTakenGrid[cell.y + 1][cell.x + 1];
+        let bottomRightCell = cells[bottomRightCellIndex];
+        if (!bottomRightCell.canMove) {
+            cell.canMove = false;
+        }
+        bottomRightCell.color.setAlpha(Math.max(alpha(bottomRightCell.color) - 8, cell.minAlpha));
+    }
 
 
     function updateDown(cell) {
