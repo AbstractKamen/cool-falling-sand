@@ -13,19 +13,25 @@ var colorPicker;
 const cells = [];
 var placeTakenGrid;
 var mousePressedOnTaken = false;
+var cellMousePressedOnType;
 
 class Cell {
-    constructor(x, y, color, index) {
+    constructor(x, y, color, index, cellType) {
         this.index = index;
         this.x = x;
         this.y = y;
         this.canMove = true;
+        this.cellType = cellType;
 
         this.color = color;
         let a = alpha(color);
         this.minAlpha = Math.floor(random(a >> 2, a))
     }
 }
+
+var cellTypeSelect;
+const PLATFORM_CELL = '1';
+const SAND_CELL = '0';
 
 function setup() {
     RED = color('red');
@@ -61,10 +67,10 @@ function setup() {
     decreaseBrush.position(colorPicker.width + 5 + cellSizeColWidth, DEFAULT_CANVAS_HEIGHT + increaseBrush.height);
     increaseBrush.mousePressed(() => {
         brushSize = Math.min(brushSize << 1, 64)
-    })
+    });
     decreaseBrush.mousePressed(() => {
         brushSize = Math.max(brushSize >> 1, 1)
-    })
+    });
     let brushSizeColWidth = Math.max(increaseBrush.width, decreaseBrush.width);
     // brush density
     let increaseBrushDensity = createButton('Increase Brush Density');
@@ -73,10 +79,17 @@ function setup() {
     decreaseBrushDensity.position(colorPicker.width + 5 + cellSizeColWidth + brushSizeColWidth, DEFAULT_CANVAS_HEIGHT + increaseBrushDensity.height);
     increaseBrushDensity.mousePressed(() => {
         density = Math.min(density << 1, brushSize);
-    })
+    });
     decreaseBrushDensity.mousePressed(() => {
         density = Math.max(density >> 1, 1)
-    })
+    });
+    // select cell type
+    cellTypeSelect = createSelect();
+    cellTypeSelect.option('Paint Sand Cell', SAND_CELL);
+    cellTypeSelect.option('Paint Platform Cell', PLATFORM_CELL);
+    cellTypeSelect.selected(SAND_CELL);
+    cellTypeSelect.position(0, DEFAULT_CANVAS_HEIGHT + increaseBrushDensity.height * 2);
+
 }
 
 function draw() {
@@ -99,12 +112,14 @@ function mousePressed() {
         let index = placeTakenGrid[y][x];
         if (index > 0) {
             mousePressedOnTaken = true;
+            cellMousePressedOnType = cells[index].cellType;
         }
     }
 }
 
 function mouseReleased() {
     mousePressedOnTaken = false;
+    cellMousePressedOnType = undefined;
 }
 
 function ifMouseIsPressed() {
@@ -112,33 +127,45 @@ function ifMouseIsPressed() {
         let x = Math.floor(mouseX / cellSize);
         let y = Math.floor(mouseY / cellSize);
         if (0 <= y && y < placeTakenGrid.length && 0 <= x && x < placeTakenGrid[0].length) {
-            spray(x, y, density, brushSize);
+            spray(x, y, density, brushSize >> 1);
         }
     }
 }
 
 function spray(centerX, centerY, times, sprayAreaFactor) {
     if (mousePressedOnTaken === true) {
-        removeCells(times, centerY, sprayAreaFactor, centerX);
+        removeCells(centerX, centerY, times, sprayAreaFactor);
     } else {
-        addCells(times, centerY, sprayAreaFactor, centerX);
+        addCells(centerX, centerY, times, sprayAreaFactor);
     }
 }
 
-function addCells(times, centerY, sprayAreaFactor, centerX) {
-    for (let i = 0; i < times; i++) {
+function addCells(centerX, centerY, times, sprayAreaFactor) {
+    if (cellTypeSelect.selected() === PLATFORM_CELL) {
         let y = centerY;
         let x = centerX;
-        if (sprayAreaFactor > 1) {
-            y = Math.floor(random(Math.max(0, centerY - sprayAreaFactor), Math.min(centerY + sprayAreaFactor, placeTakenGrid.length - 1)));
-            x = Math.floor(random(Math.max(0, centerX - sprayAreaFactor), Math.min(centerX + sprayAreaFactor, placeTakenGrid[0].length - 1)));
-        }
-
         let index = placeTakenGrid[y][x];
         if (index < 0) {
-            let newCell = new Cell(x, y, colorPicker.color(), cells.length);
+            let newCell = new Cell(x, y, colorPicker.color(), cells.length, PLATFORM_CELL);
+            newCell.canMove = false;
             cells.push(newCell)
             takeSpot(newCell);
+        }
+    } else {
+        for (let i = 0; i < times; i++) {
+            let y = centerY;
+            let x = centerX;
+            if (sprayAreaFactor > 1) {
+                y = Math.floor(random(Math.max(0, centerY - sprayAreaFactor), Math.min(centerY + sprayAreaFactor, placeTakenGrid.length - 1)));
+                x = Math.floor(random(Math.max(0, centerX - sprayAreaFactor), Math.min(centerX + sprayAreaFactor, placeTakenGrid[0].length - 1)));
+            }
+
+            let index = placeTakenGrid[y][x];
+            if (index < 0) {
+                let newCell = new Cell(x, y, colorPicker.color(), cells.length, SAND_CELL);
+                cells.push(newCell)
+                takeSpot(newCell);
+            }
         }
     }
 }
@@ -147,12 +174,12 @@ const descendingComparator = (a, b) => a - b;
 const toRemove = new BinaryHeap(descendingComparator);
 const duplicates = new Set();
 
-function removeCells(times, centerY, sprayAreaFactor, centerX) {
+function removeCells(centerX, centerY, times, sprayAreaFactor) {
     for (let i = 0; i < times; i++) {
         let y = Math.round(random(Math.max(0, centerY - sprayAreaFactor), Math.min(centerY + sprayAreaFactor, placeTakenGrid.length - 1)));
         let x = Math.round(random(Math.max(0, centerX - sprayAreaFactor), Math.min(centerX + sprayAreaFactor, placeTakenGrid[0].length - 1)))
         let index = placeTakenGrid[y][x];
-        if (index >= 0 && !duplicates.has(index)) {
+        if (index >= 0 && !duplicates.has(index) && cellMousePressedOnType === cells[index].cellType) {
             duplicates.add(index);
             toRemove.push(index);
         } else {
@@ -161,7 +188,7 @@ function removeCells(times, centerY, sprayAreaFactor, centerX) {
                 y = Math.round(random(Math.max(0, centerY - shrinkingFactor), Math.min(centerY + shrinkingFactor, placeTakenGrid.length - 1)));
                 x = Math.round(random(Math.max(0, centerX - shrinkingFactor), Math.min(centerX + shrinkingFactor, placeTakenGrid[0].length - 1)))
                 index = placeTakenGrid[y][x];
-                if (index >= 0 && !duplicates.has(index)) {
+                if (index >= 0 && !duplicates.has(index) && cellMousePressedOnType === cells[index].cellType) {
                     duplicates.add(index);
                     toRemove.push(index);
                     break;
@@ -193,20 +220,23 @@ function removeCells(times, centerY, sprayAreaFactor, centerX) {
 
 function updateNeighboursCanMove(cell) {
     if (0 <= cell.y - 1) {
-        let topNeighbour = placeTakenGrid[cell.y - 1][cell.x];
-        if (topNeighbour > -1) {
-            cells[topNeighbour].canMove = true;
+        let topNeighbourIndex = placeTakenGrid[cell.y - 1][cell.x];
+        if (topNeighbourIndex > -1) {
+            let topNeighbour = cells[topNeighbourIndex];
+            if (topNeighbour.cellType === SAND_CELL) topNeighbour.canMove = true;
         }
         if (0 <= cell.x - 1) {
-            let topLeftNeighbour = placeTakenGrid[cell.y - 1][cell.x - 1];
-            if (topLeftNeighbour > -1) {
-                cells[topLeftNeighbour].canMove = true;
+            let topLeftNeighbourIndex = placeTakenGrid[cell.y - 1][cell.x - 1];
+            if (topLeftNeighbourIndex > -1) {
+                let topLeftNeighbour = cells[topLeftNeighbourIndex];
+                if (topLeftNeighbour.cellType === SAND_CELL) topLeftNeighbour.canMove = true;
             }
         }
         if (cell.x + 1 < placeTakenGrid[cell.y - 1].length) {
-            let topRightNeighbour = placeTakenGrid[cell.y - 1][cell.x + 1];
-            if (topRightNeighbour > -1) {
-                cells[topRightNeighbour].canMove = true;
+            let topRightNeighbourIndex = placeTakenGrid[cell.y - 1][cell.x + 1];
+            if (topRightNeighbourIndex > -1) {
+                let topRightNeighbour = cells[topRightNeighbourIndex];
+                if (topRightNeighbour.cellType === SAND_CELL) topRightNeighbour.canMove = true;
             }
         }
     }
