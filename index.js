@@ -1,7 +1,7 @@
 const DEFAULT_CANVAS_WIDTH = window.innerWidth;
-const DEFAULT_CANVAS_HEIGHT = window.innerHeight;
+const DEFAULT_CANVAS_HEIGHT = window.innerHeight - window.innerHeight * 0.05;
 
-var cellSize = 2;
+var cellSize = 1;
 var brushSize = 4;
 var density = 4;
 
@@ -58,7 +58,7 @@ function setup() {
         placeTakenGrid = makeGrid(Math.floor(DEFAULT_CANVAS_WIDTH / cellSize), Math.floor(DEFAULT_CANVAS_HEIGHT / cellSize));
     });
     decreaseCellSize.mousePressed(() => {
-        let newSize = Math.max(cellSize >> 1, 2);
+        let newSize = Math.max(cellSize >> 1, 1);
         cells.length = 0;
         cellSize = newSize;
         placeTakenGrid = makeGrid(Math.floor(DEFAULT_CANVAS_WIDTH / cellSize), Math.floor(DEFAULT_CANVAS_HEIGHT / cellSize));
@@ -116,17 +116,23 @@ function draw() {
     // debugGrid();
 }
 
-function touchStarted(e) {
-    e.preventDefault()
-}
-
+// function touchStarted(e) {
+//     if (10 < mouseX || mouseX < window.innerWidth - 10) {
+//         e.preventDefault()
+//     }
+// }
+//
 function touchMoved(e) {
-    e.preventDefault()
+    if (10 < mouseX || mouseX < window.innerWidth - 10) {
+        e.preventDefault()
+    }
 }
-
-function touchEnde(e) {
-    e.preventDefault()
-}
+//
+// function touchEnde(e) {
+//     if (10 < mouseX || mouseX < window.innerWidth - 10) {
+//         e.preventDefault()
+//     }
+// }
 
 function mousePressed() {
     let x = Math.floor(mouseX / cellSize);
@@ -350,17 +356,17 @@ function updateCell(cell) {
     if (0 <= cell.x - 1) {
         let bottomLeftCellIndex = placeTakenGrid[cell.y + 1][cell.x - 1];
         let bottomLeftCell = cells[bottomLeftCellIndex];
-        if (!bottomLeftCell.canMove) {
-            cell.canMove = false;
-        }
+        // if (!bottomLeftCell.canMove) {
+        //     cell.canMove = false;
+        // }
         bottomLeftCell.color.setAlpha(Math.max(alpha(bottomLeftCell.color) - 8, cell.minAlpha));
     }
     if (cell.x + 1 < placeTakenGrid[cell.y + 1].length) {
         let bottomRightCellIndex = placeTakenGrid[cell.y + 1][cell.x + 1];
         let bottomRightCell = cells[bottomRightCellIndex];
-        if (!bottomRightCell.canMove) {
-            cell.canMove = false;
-        }
+        // if (!bottomRightCell.canMove) {
+        //     cell.canMove = false;
+        // }
         bottomRightCell.color.setAlpha(Math.max(alpha(bottomRightCell.color) - 8, cell.minAlpha));
     }
 
@@ -410,9 +416,11 @@ function releaseSpot(cell) {
 }
 
 function updateCells() {
+    let h = new BinaryHeap((a, b) => a.y - b.y)
     for (const cell of cells) {
-        updateCell(cell);
+        h.push(cell);
     }
+    while (!h.isEmpty()) updateCell(h.pop());
 }
 
 function makeGrid(width, height) {
