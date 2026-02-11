@@ -101,19 +101,46 @@ function setup() {
     paintTypeSelect.position(0 + increaseBrushDensity.width, DEFAULT_CANVAS_HEIGHT + increaseBrushDensity.height * 2);
 
 }
-
 function draw() {
     ifMouseIsPressed();
 
     updateCells();
     updateCells();
+    push();
     background('#181818FF');
+    // let density = pixelDensity();
+    // loadPixels();
     noStroke();
     for (const cell of cells) {
+        // paintPixels(cell.y * cellSize, cell.x * cellSize, cellSize, cellSize, density, cell.color);
         fill(cell.color);
         rect(cell.x * cellSize, cell.y * cellSize, cellSize, cellSize);
     }
+    // updatePixels();
+    stroke(1);
+    fill(WHITE)
+    textSize(20)
+    text(`${cells.length} sand grains at ${frameRate().toFixed(2)} fps`, 0, 40);
+    pop();
     // debugGrid();
+}
+
+function paintPixels(y, x, h, w, density, color) {
+    for (let dy = y; dy < y + h; ++dy) {
+        for (let dx = x; dx < x + w; ++dx) {
+            // pixel density
+            for (let di = 0; di < density; ++di) {
+                for (let dj = 0; dj < density; ++dj) {
+                    let pixelIndex =
+                        4 * ((dy * density + dj) * width * density + (dx * density + di));
+                    pixels[pixelIndex] = color.levels[0];
+                    pixels[pixelIndex + 1] = color.levels[1];
+                    pixels[pixelIndex + 2] = color.levels[2];
+                    pixels[pixelIndex + 3] = color.levels[3];
+                }
+            }
+        }
+    }
 }
 
 // function touchStarted(e) {
@@ -127,6 +154,7 @@ function touchMoved(e) {
         e.preventDefault()
     }
 }
+
 //
 // function touchEnde(e) {
 //     if (10 < mouseX || mouseX < window.innerWidth - 10) {
@@ -352,24 +380,6 @@ function updateCell(cell) {
         cell.canMove = false;
     }
     bottomCell.color.setAlpha(Math.max(alpha(bottomCell.color) - 8, cell.minAlpha));
-
-    if (0 <= cell.x - 1) {
-        let bottomLeftCellIndex = placeTakenGrid[cell.y + 1][cell.x - 1];
-        let bottomLeftCell = cells[bottomLeftCellIndex];
-        // if (!bottomLeftCell.canMove) {
-        //     cell.canMove = false;
-        // }
-        bottomLeftCell.color.setAlpha(Math.max(alpha(bottomLeftCell.color) - 8, cell.minAlpha));
-    }
-    if (cell.x + 1 < placeTakenGrid[cell.y + 1].length) {
-        let bottomRightCellIndex = placeTakenGrid[cell.y + 1][cell.x + 1];
-        let bottomRightCell = cells[bottomRightCellIndex];
-        // if (!bottomRightCell.canMove) {
-        //     cell.canMove = false;
-        // }
-        bottomRightCell.color.setAlpha(Math.max(alpha(bottomRightCell.color) - 8, cell.minAlpha));
-    }
-
 
     function updateDown(cell) {
         if (!downSpotIsTaken(cell)) {
