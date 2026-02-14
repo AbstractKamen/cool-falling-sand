@@ -101,6 +101,7 @@ function setup() {
     paintTypeSelect.position(0 + increaseBrushDensity.width, DEFAULT_CANVAS_HEIGHT + increaseBrushDensity.height * 2);
 
 }
+
 function draw() {
     ifMouseIsPressed();
 
@@ -111,18 +112,57 @@ function draw() {
     // let density = pixelDensity();
     // loadPixels();
     noStroke();
-    for (const cell of cells) {
-        // paintPixels(cell.y * cellSize, cell.x * cellSize, cellSize, cellSize, density, cell.color);
-        fill(cell.color);
-        rect(cell.x * cellSize, cell.y * cellSize, cellSize, cellSize);
-    }
+
+    drawOneByOne();
+
+    // drawBatch();
     // updatePixels();
     stroke(1);
     fill(WHITE)
     textSize(20)
     text(`${cells.length} sand grains at ${frameRate().toFixed(2)} fps`, 0, 40);
     pop();
+
     // debugGrid();
+
+    function drawOneByOne() {
+        for (const cell of cells) {
+            // paintPixels(cell.y * cellSize, cell.x * cellSize, cellSize, cellSize, density, cell.color);
+            fill(cell.color);
+            rect(cell.x * cellSize, cell.y * cellSize, cellSize, cellSize);
+        }
+    }
+
+    function drawBatch() {
+        // group by color
+        const cellsByColor = new Map()
+        for (const cell of cells) {
+            // let hash = 31 *
+            //     cell.color.levels[0] + cell.color.levels[1] * 37 + cell.color.levels[2] * 17 + cell.color.levels[3] * 19
+            //     cell.color.maxes[0] * 31 + cell.color.maxes[1] * 37 + cell.color.maxes[2] * 17 + cell.color.maxes[3] * 19;
+            let hash = cell.color;
+            let bucket = cellsByColor.get(hash);
+            if (bucket !== undefined) {
+                bucket.push(cell);
+            } else {
+                cellsByColor.set(hash, [cell])
+            }
+        }
+        for (const [colorHash, sameColorCells] of cellsByColor) {
+            fill(sameColorCells[0].color);
+            beginShape(QUADS);
+            for (const cell of sameColorCells) {
+                const x = cell.x * cellSize;
+                const y = cell.y * cellSize;
+
+                vertex(x, y);
+                vertex(x + cellSize, y);
+                vertex(x + cellSize, y + cellSize);
+                vertex(x, y + cellSize);
+            }
+            endShape();
+        }
+    }
 }
 
 function paintPixels(y, x, h, w, density, color) {
@@ -218,8 +258,8 @@ function cellsBrush(centerX, centerY, times, brushDiameter, funcOnStep, postStep
     } else {
         let r_2 = r * r;
 
-        for (let i = -r; i < r; i++) {
-            for (let j = -r; j < r; j++) {
+        for (let i = -r; i <= r; i++) {
+            for (let j = -r; j <= r; j++) {
                 let dX = centerX + j;
                 let dY = centerY + i;
                 if (0 <= dX && 0 <= dY
