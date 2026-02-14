@@ -37,6 +37,10 @@ var paintTypeSelect;
 const PAINT_BRUSH = '11';
 const PAINT_SPRAY = '00';
 
+var sandType;
+const RANDOM_COLOUR = '111';
+const PICKED_COLOR = '000';
+
 function setup() {
     RED = color('red');
     WHITE = color('white');
@@ -98,7 +102,13 @@ function setup() {
     paintTypeSelect.option('Paint Brush', PAINT_BRUSH);
     paintTypeSelect.option('Paint Spray', PAINT_SPRAY);
     paintTypeSelect.selected(PAINT_BRUSH);
-    paintTypeSelect.position(0 + increaseBrushDensity.width, DEFAULT_CANVAS_HEIGHT + increaseBrushDensity.height * 2);
+    paintTypeSelect.position(cellTypeSelect.x + cellTypeSelect.width * 8, DEFAULT_CANVAS_HEIGHT + increaseBrushDensity.height * 2);
+
+    sandType = createSelect();
+    sandType.option('Random Sand Color', RANDOM_COLOUR);
+    sandType.option('Picked Sand Color', PICKED_COLOR);
+    sandType.selected(RANDOM_COLOUR);
+    sandType.position(paintTypeSelect.x + paintTypeSelect.width * 8, DEFAULT_CANVAS_HEIGHT + increaseBrushDensity.height * 2);
 
 }
 
@@ -190,7 +200,7 @@ function paintPixels(y, x, h, w, density, color) {
 // }
 //
 function touchMoved(e) {
-    if (10 < mouseX || mouseX < window.innerWidth - 10) {
+    if (20 < mouseX || mouseX < window.innerWidth - 20) {
         e.preventDefault()
     }
 }
@@ -210,6 +220,10 @@ function mousePressed() {
         if (index > 0) {
             mousePressedOnTaken = true;
             cellMousePressedOnType = cells[index].cellType;
+        } else {
+            if (sandType.selected() === RANDOM_COLOUR) {
+                colorPicker.value(color(random(255), random(255), random(255)).toString('#rrggbb'));
+            }
         }
     }
 }
